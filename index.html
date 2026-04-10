@@ -83,7 +83,7 @@
             try {
                 if ('speechSynthesis' in window) {
                     let fraseInicial = new SpeechSynthesisUtterance("¡Pago el alquiler con garrafas de agua!");
-                    fraseInicial.lang = 'es-ES'; fraseInicial.rate = 1; fraseInicial.pitch = 1.3;
+                    fraseInicial.lang = 'es-ES'; fraseInicial.rate = 1.5; fraseInicial.pitch = 1.7;
                     window.speechSynthesis.speak(fraseInicial);
                 }
             } catch(e) { console.log("Error de voz", e); }
