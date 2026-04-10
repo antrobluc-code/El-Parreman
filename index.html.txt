@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Fat-Man Chaser</title>
+    <style>
+        body, html {
+            margin: 0; padding: 0; width: 100%; height: 100%;
+            background-color: #222; overflow: hidden; font-family: sans-serif;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+        }
+        canvas {
+            background-color: #333;
+            box-shadow: 0 0 20px rgba(0,0,0,0.5);
+            display: none; /* Oculto hasta que empiece el juego */
+        }
+        #start-screen {
+            text-align: center; color: white; padding: 20px;
+        }
+        button {
+            padding: 15px 30px; font-size: 20px; font-weight: bold;
+            background-color: #ffcc00; color: #333; border: none;
+            border-radius: 10px; cursor: pointer; margin-top: 20px;
+        }
+        #game-over {
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            color: red; font-size: 40px; font-weight: bold; text-shadow: 2px 2px black;
+            display: none; text-align: center;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="start-screen">
+        <h1>Fat-Man Chaser</h1>
+        <p>Incliná tu móvil para mover la bolita azul.</p>
+        <p>¡Huye de la cara! Si te atrapa, pierdes.</p>
+        <button id="start-btn">Toca aquí para Empezar</button>
+    </div>
+
+    <canvas id="gameCanvas"></canvas>
+    <div id="game-over">¡TE COMIÓ!<br><button onclick="location.reload()">Reintentar</button></div>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const startBtn = document.getElementById('start-btn');
+        const startScreen = document.getElementById('start-screen');
+        const gameOverScreen = document.getElementById('game-over');
+
+        // Ajustar canvas al tamaño de la pantalla
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+
+        // Variables del juego
+        let gameRunning = false;
+        let audioCtx;
+        let lastNamTime = 0;
+
+        // Jugador (Bolita)
+        const player = {
+            x: canvas.width / 2, y: canvas.height / 2, radius: 15,
+            vx: 0, vy: 0, speed: 0.1, friction: 0.95
+        };
+
+        // Enemigo (Fat-Man)
+        const enemy = {
+            x: 50, y: 50, radius: 40, speed: 2.5
+        };
+
+        // Cargar la imagen de la cara (Asegúrate de tener la imagen en la misma carpeta)
+        const enemyImg = new Image();
+        enemyImg.src = 'cara.jpg'; // <-- AQUÍ SE CARGA LA FOTO
+
+        // Iniciar el juego
+        startBtn.addEventListener('click', () => {
+            // Iniciar Audio Context (requiere interacción del usuario)
+            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            
+            // Solicitar permisos de giroscopio (necesario en algunos navegadores)
+            if (typeof DeviceOrientationEvent.requestPermission === 'function') {
+                DeviceOrientationEvent.requestPermission()
+                    .then(permissionState => {
+                        if (permissionState === 'granted') {
+                            window.addEventListener('deviceorientation', handleOrientation);
+                            startGame();
+                        } else {
+                            alert('Se necesita acceso al giroscopio para jugar.');
+                        }
+                    })
+                    .catch(console.error);
+            } else {
+                window.addEventListener('deviceorientation', handleOrientation);
+                startGame();
+            }
+        });
+
+        function startGame() {
+            startScreen.style.display = 'none';
+            canvas.style.display = 'block';
+            gameRunning = true;
+            gameLoop();
+        }
+
+        // Manejar la inclinación del móvil
+        function handleOrientation(event) {
+            if (!gameRunning) return;
+            
+            // gamma es la inclinación izquierda/derecha (-90 a 90)
+            // beta es la inclinación adelante/atrás (-180 a 180)
+            let tiltX = event.gamma;
+            let tiltY = event.beta;
+
+            // Limitar valores para que no se vuelva loco si el móvil está boca abajo
+            if (tiltX > 90) tiltX = 90; if (tiltX < -90) tiltX = -90;
+            if (tiltY > 90) tiltY = 90; if (tiltY < -90) tiltY = -90;
+
+            // Aplicar la inclinación como velocidad a la bola
+            player.vx += tiltX * player.speed;
+            player.vy += tiltY * player.speed;
+        }
+
+        // Sintetizador de sonido "Ñam"
+        function playNamSound() {
+            if (!audioCtx) return;
+            const osc = audioCtx.createOscillator();
+            const gainNode = audioCtx.createGain();
+            osc.connect(gainNode);
+            gainNode.connect(audioCtx.destination);
+            
+            osc.type = 'sawtooth'; // Sonido un poco más rasposo
+            osc.frequency.setValueAtTime(150, audioCtx.currentTime); // Tono grave
+            osc.frequency.exponentialRampToValueAtTime(40, audioCtx.currentTime + 0.15); // Caída rápida
+            
+            gainNode.gain.setValueAtTime(0.5, audioCtx.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.15);
+            
+            osc.start();
+            osc.stop(audioCtx.currentTime + 0.15);
+        }
+
+        function gameLoop(timestamp) {
+            if (!gameRunning) return;
+
+            // --- LÓGICA DEL JUGADOR ---
+            // Aplicar fricción para que no deslice infinitamente
+            player.vx *= player.friction;
+            player.vy *= player.friction;
+            
+            player.x += player.vx;
+            player.y += player.vy;
+
+            // Límites de la pantalla (Rebote)
+            if (player.x - player.radius < 0) { player.x = player.radius; player.vx *= -0.5; }
+            if (player.x + player.radius > canvas.width) { player.x = canvas.width - player.radius; player.vx *= -0.5; }
+            if (player.y - player.radius < 0) { player.y = player.radius; player.vy *= -0.5; }
+            if (player.y + player.radius > canvas.height) { player.y = canvas.height - player.radius; player.vy *= -0.5; }
+
+            // --- LÓGICA DEL ENEMIGO (Persecución) ---
+            let dx = player.x - enemy.x;
+            let dy = player.y - enemy.y;
+            let distance = Math.sqrt(dx * dx + dy * dy);
+
+            if (distance > 0) {
+                enemy.x += (dx / distance) * enemy.speed;
+                enemy.y += (dy / distance) * enemy.speed;
+            }
+
+            // --- LÓGICA DEL SONIDO (Dinámico según distancia) ---
+            // Si la distancia es 500px, el sonido suena cada 1000ms. Si es 50px, suena cada 100ms.
+            let soundDelay = Math.max(100, (distance / 500) * 1000); 
+            
+            if (timestamp - lastNamTime > soundDelay) {
+                playNamSound();
+                lastNamTime = timestamp;
+            }
+
+            // --- COLISIONES (Game Over) ---
+            if (distance < player.radius + enemy.radius - 10) { // -10 para dar un poco de margen de error
+                gameRunning = false;
+                gameOverScreen.style.display = 'block';
+                return; // Detener el loop
+            }
+
+            // --- DIBUJAR TODO ---
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Dibujar Jugador
+            ctx.beginPath();
+            ctx.arc(player.x, player.y, player.radius, 0, Math.PI * 2);
+            ctx.fillStyle = '#00e5ff'; // Color azul brillante
+            ctx.fill();
+            ctx.closePath();
+
+            // Dibujar Enemigo (Intentar usar la imagen, si falla dibuja un círculo rojo)
+            if (enemyImg.complete && enemyImg.naturalHeight !== 0) {
+                ctx.save();
+                ctx.beginPath();
+                ctx.arc(enemy.x, enemy.y, enemy.radius, 0, Math.PI * 2);
+                ctx.clip(); // Recortar en círculo para que la cara quede redonda
+                ctx.drawImage(enemyImg, enemy.x - enemy.radius, enemy.y - enemy.radius, enemy.radius * 2, enemy.radius * 2);
+                ctx.restore();
+            } else {
+                ctx.beginPath();
+                ctx.arc(enemy.x, enemy.y, enemy.radius, 0, Math.PI * 2);
+                ctx.fillStyle = 'red';
+                ctx.fill();
+                ctx.closePath();
+            }
+
+            requestAnimationFrame(gameLoop);
+        }
+    </script>
+</body>
+</html>
