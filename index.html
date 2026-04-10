@@ -147,9 +147,9 @@
                     frase.lang = 'es-ES';
                     
                     let normalizedDistance = Math.min(1, distance / 500);
-                    let velocidadPronunciacion = 4 - normalizedDistance * 1; 
+                    let velocidadPronunciacion = 3 - normalizedDistance * 1.5; 
                     if (velocidadPronunciacion < 2.5) velocidadPronunciacion = 1.5;
-                    if (velocidadPronunciacion > 4) velocidadPronunciacion = 3;
+                    if (velocidadPronunciacion > 3) velocidadPronunciacion = 2;
                     
                     frase.rate = velocidadPronunciacion; 
                     frase.pitch = 1.7; 
