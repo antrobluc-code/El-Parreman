@@ -27,6 +27,7 @@
             position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
             color: red; font-size: 40px; font-weight: bold; text-shadow: 2px 2px black;
             display: none; text-align: center;
+            z-index: 10;
         }
     </style>
 </head>
@@ -68,38 +69,44 @@
         // Enemigo (La Cara)
         const enemy = {
             x: 50, y: 50, radius: 45, speed: 2.5,
-            mouthOpenness: 0 // Estado de la boca (0 cerrado, 1 abierto)
+            mouthOpenness: 0
         };
 
-        // Cargar la imagen de la cara (Asegúrate de tener la imagen 'cara.jpg' en la misma carpeta)
+        // Cargar la imagen de la cara
         const enemyImg = new Image();
         enemyImg.src = 'cara.jpg'; 
         enemyImg.onload = () => { enemyImageLoaded = true; };
 
-        // Iniciar el juego
+        // Iniciar el juego (Botón a prueba de fallos)
         startBtn.addEventListener('click', () => {
-            // Activar el sintetizador de voz (requiere interacción en Android)
-            if ('speechSynthesis' in window) {
-                let fraseInicial = new SpeechSynthesisUtterance("¡Cuidado!");
-                fraseInicial.lang = 'es-ES'; fraseInicial.rate = 1.2; fraseInicial.pitch = 1.7;
-                window.speechSynthesis.speak(fraseInicial);
-            }
+            // Activar voz
+            try {
+                if ('speechSynthesis' in window) {
+                    let fraseInicial = new SpeechSynthesisUtterance("¡Cuidado!");
+                    fraseInicial.lang = 'es-ES'; fraseInicial.rate = 1.2; fraseInicial.pitch = 1.7;
+                    window.speechSynthesis.speak(fraseInicial);
+                }
+            } catch(e) { console.log("Error de voz", e); }
 
-            // Solicitar permisos de giroscopio y acelerómetro (necesario en Android/Chrome moderno)
-            if (typeof DeviceOrientationEvent.requestPermission === 'function') {
-                DeviceOrientationEvent.requestPermission()
-                    .then(permissionState => {
-                        if (permissionState === 'granted') {
-                            window.addEventListener('deviceorientation', handleOrientation);
-                            startGame();
-                        } else {
-                            alert('Se necesita acceso a los sensores para jugar.');
-                        }
-                    })
-                    .catch(console.error);
-            } else {
-                // En AndroidChrome antiguo no hace falta permiso explícito
-                window.addEventListener('deviceorientation', handleOrientation);
+            // Comprobación segura de sensores
+            try {
+                if (window.DeviceOrientationEvent && typeof window.DeviceOrientationEvent.requestPermission === 'function') {
+                    window.DeviceOrientationEvent.requestPermission()
+                        .then(permissionState => {
+                            if (permissionState === 'granted') {
+                                window.addEventListener('deviceorientation', handleOrientation);
+                            }
+                            startGame(); // Inicia el juego
+                        })
+                        .catch(e => {
+                            startGame(); // Inicia aunque falle el permiso
+                        });
+                } else {
+                    window.addEventListener('deviceorientation', handleOrientation);
+                    startGame(); // Inicia el juego
+                }
+            } catch (error) {
+                // Si todo falla, fuerza el inicio para que no se quede bloqueado
                 startGame();
             }
         });
@@ -107,55 +114,55 @@
         function startGame() {
             startScreen.style.display = 'none';
             canvas.style.display = 'block';
+            
+            // Reajustar tamaño por si ha cambiado al quitar la pantalla de inicio
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            
             gameRunning = true;
-            gameLoop();
+            requestAnimationFrame(gameLoop);
         }
 
-        // Manejar la inclinación del móvil (Acelerómetro/Giroscopio de Android)
+        // Manejar la inclinación del móvil
         function handleOrientation(event) {
             if (!gameRunning) return;
             
-            // gamma es la inclinación izquierda/derecha
-            // beta es la inclinación adelante/atrás
             let tiltX = event.gamma;
             let tiltY = event.beta;
 
-            // Limitar valores para que no se vuelva loco si el móvil está boca abajo
             if (tiltX > 90) tiltX = 90; if (tiltX < -90) tiltX = -90;
             if (tiltY > 90) tiltY = 90; if (tiltY < -90) tiltY = -90;
 
-            // Aplicar la inclinación como fuerza (velocidad) a la bola
             player.vx += tiltX * player.speed;
             player.vy += tiltY * player.speed;
         }
 
         // Voz aguda de chico que dice "Cazo" acelerándose
         function playNamSound(distance) {
-            if ('speechSynthesis' in window) {
-                window.speechSynthesis.cancel(); // Cortar lo anterior para que no se atasque
-                
-                let frase = new SpeechSynthesisUtterance("cazo");
-                frase.lang = 'es-ES';
-                
-                // --- CAMBIO: Velocidad dinámica ---
-                // La pronunciación es más rápida cuanto más cerca (entre velocidad 1.5 y 3)
-                let normalizedDistance = Math.min(1, distance / 500);
-                let velocidadPronunciacion = 3 - normalizedDistance * 1.5; 
-                if (velocidadPronunciacion < 1.5) velocidadPronunciacion = 1.5;
-                if (velocidadPronunciacion > 3) velocidadPronunciacion = 3;
-                
-                frase.rate = velocidadPronunciacion; 
-                frase.pitch = 1.7; // Tono agudo (estridente/chico)
-                
-                window.speechSynthesis.speak(frase);
-            }
+            try {
+                if ('speechSynthesis' in window) {
+                    window.speechSynthesis.cancel();
+                    
+                    let frase = new SpeechSynthesisUtterance("cazo");
+                    frase.lang = 'es-ES';
+                    
+                    let normalizedDistance = Math.min(1, distance / 500);
+                    let velocidadPronunciacion = 3 - normalizedDistance * 1.5; 
+                    if (velocidadPronunciacion < 1.5) velocidadPronunciacion = 1.5;
+                    if (velocidadPronunciacion > 3) velocidadPronunciacion = 3;
+                    
+                    frase.rate = velocidadPronunciacion; 
+                    frase.pitch = 1.7; 
+                    
+                    window.speechSynthesis.speak(frase);
+                }
+            } catch(e) {}
         }
 
         function gameLoop(timestamp) {
             if (!gameRunning) return;
 
-            // --- LÓGICA DEL JUGADOR ---
-            // Aplicar fricción (la bola frena sola)
+            // Fricción
             player.vx *= player.friction;
             player.vy *= player.friction;
             
@@ -163,13 +170,13 @@
             player.x += player.vx;
             player.y += player.vy;
 
-            // Límites de la pantalla con rebote suave
+            // Límites de pantalla
             if (player.x - player.radius < 0) { player.x = player.radius; player.vx *= -0.5; }
             if (player.x + player.radius > canvas.width) { player.x = canvas.width - player.radius; player.vx *= -0.5; }
             if (player.y - player.radius < 0) { player.y = player.radius; player.vy *= -0.5; }
             if (player.y + player.radius > canvas.height) { player.y = canvas.height - player.radius; player.vy *= -0.5; }
 
-            // --- LÓGICA DEL ENEMIGO (Persecución) ---
+            // Persecución
             let dx = player.x - enemy.x;
             let dy = player.y - enemy.y;
             let distance = Math.sqrt(dx * dx + dy * dy);
@@ -179,6 +186,84 @@
                 enemy.y += (dy / distance) * enemy.speed;
             }
 
-            // --- LÓGICA DEL SONIDO (Dinámico según distancia) ---
-            // El retraso entre cada "cazo" varía entre 350ms (cerca) y 1000ms (lejos)
-            let soundDelay = Math.max(350, (distance / 500) * 1000
+            // Sonido
+            let soundDelay = Math.max(350, (distance / 500) * 1000); 
+            if (timestamp - lastNamTime > soundDelay) {
+                playNamSound(distance);
+                lastNamTime = timestamp;
+            }
+
+            // Animación de la boca
+            let normalizedDistance = Math.min(1, distance / 500);
+            let animationSpeed = 0.005 + (1 - normalizedDistance) * 0.025; 
+            enemy.mouthOpenness = (Math.sin(timestamp * animationSpeed) + 1) / 2;
+
+            // Game Over
+            if (distance < player.radius + enemy.radius - 10) { 
+                gameRunning = false;
+                gameOverScreen.style.display = 'block';
+                
+                try {
+                    if ('speechSynthesis' in window) {
+                        window.speechSynthesis.cancel();
+                        let fraseGameOver = new SpeechSynthesisUtterance("¡Te comí!");
+                        fraseGameOver.lang = 'es-ES';
+                        fraseGameOver.rate = 1.2; 
+                        fraseGameOver.pitch = 1.7; 
+                        window.speechSynthesis.speak(fraseGameOver);
+                    }
+                } catch(e) {}
+                
+                return; 
+            }
+
+            // Dibujar todo
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Jugador
+            ctx.beginPath();
+            ctx.arc(player.x, player.y, player.radius, 0, Math.PI * 2);
+            ctx.fillStyle = '#00e5ff';
+            ctx.fill();
+            ctx.closePath();
+
+            // Enemigo
+            if (enemyImageLoaded) {
+                ctx.save();
+                ctx.beginPath();
+                ctx.arc(enemy.x, enemy.y, enemy.radius, 0, Math.PI * 2);
+                ctx.clip(); 
+
+                ctx.drawImage(enemyImg, enemy.x - enemy.radius, enemy.y - enemy.radius, enemy.radius * 2, enemy.radius * 2);
+                
+                // Efecto boca
+                let maxMouthArea = enemy.radius * 0.6;
+                let currentMouthHeight = maxMouthArea * enemy.mouthOpenness;
+                
+                ctx.beginPath();
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.6)'; 
+                let mouthAngleStart = Math.PI * 0.45;
+                let mouthAngleEnd = Math.PI * 0.55;
+                let oscillatingAngle = (1 - enemy.mouthOpenness) * Math.PI * 0.4;
+                
+                ctx.moveTo(enemy.x, enemy.y); 
+                ctx.arc(enemy.x, enemy.y, enemy.radius + 5, 
+                        mouthAngleStart - oscillatingAngle, 
+                        mouthAngleEnd + oscillatingAngle); 
+                ctx.lineTo(enemy.x, enemy.y);
+                ctx.fill();
+                
+                ctx.restore(); 
+            } else {
+                ctx.beginPath();
+                ctx.arc(enemy.x, enemy.y, enemy.radius, 0, Math.PI * 2);
+                ctx.fillStyle = 'red';
+                ctx.fill();
+                ctx.closePath();
+            }
+
+            requestAnimationFrame(gameLoop);
+        }
+    </script>
+</body>
+</html>
