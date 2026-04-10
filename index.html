@@ -82,8 +82,8 @@
             // Activar voz
             try {
                 if ('speechSynthesis' in window) {
-                    let fraseInicial = new SpeechSynthesisUtterance("¡Cuidado!");
-                    fraseInicial.lang = 'es-ES'; fraseInicial.rate = 1.2; fraseInicial.pitch = 1.7;
+                    let fraseInicial = new SpeechSynthesisUtterance("¡Pago el alquiler con garrafas de agua!");
+                    fraseInicial.lang = 'es-ES'; fraseInicial.rate = 1; fraseInicial.pitch = 1.3;
                     window.speechSynthesis.speak(fraseInicial);
                 }
             } catch(e) { console.log("Error de voz", e); }
@@ -147,9 +147,9 @@
                     frase.lang = 'es-ES';
                     
                     let normalizedDistance = Math.min(1, distance / 500);
-                    let velocidadPronunciacion = 3 - normalizedDistance * 1.5; 
-                    if (velocidadPronunciacion < 2.5) velocidadPronunciacion = 1.5;
-                    if (velocidadPronunciacion > 3) velocidadPronunciacion = 2;
+                    let velocidadPronunciacion = 2 - normalizedDistance * 1.5; 
+                    if (velocidadPronunciacion < 2) velocidadPronunciacion = 1.5;
+                    if (velocidadPronunciacion > 2.5) velocidadPronunciacion = 1.7;
                     
                     frase.rate = velocidadPronunciacion; 
                     frase.pitch = 1.7; 
