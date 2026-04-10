@@ -82,7 +82,7 @@
             // Activar voz
             try {
                 if ('speechSynthesis' in window) {
-                    let fraseInicial = new SpeechSynthesisUtterance("¡Pago el alquiler con garrafas de agua!");
+                    let fraseInicial = new SpeechSynthesisUtterance("pago el alquiler con garrafas de agua");
                     fraseInicial.lang = 'es-ES'; fraseInicial.rate = 1.5; fraseInicial.pitch = 1.7;
                     window.speechSynthesis.speak(fraseInicial);
                 }
