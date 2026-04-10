@@ -77,18 +77,28 @@
         enemyImg.src = 'cara.jpg'; 
         enemyImg.onload = () => { enemyImageLoaded = true; };
 
-        // Iniciar el juego (Botón a prueba de fallos)
+       // Iniciar el juego con retraso dramático
         startBtn.addEventListener('click', () => {
-            // Activar voz
+            // Cambiamos el texto del menú mientras habla
+            startScreen.innerHTML = "<h2>Escucha con atención...</h2>";
+            
+            // 1. Activar la voz inicial
             try {
                 if ('speechSynthesis' in window) {
                     let fraseInicial = new SpeechSynthesisUtterance("pago el alquiler con garrafas de agua");
-                    fraseInicial.lang = 'es-ES'; fraseInicial.rate = 1.5; fraseInicial.pitch = 1.7;
+                    fraseInicial.lang = 'es-ES'; fraseInicial.rate = 1.2; fraseInicial.pitch = 1.7;
                     window.speechSynthesis.speak(fraseInicial);
                 }
             } catch(e) { console.log("Error de voz", e); }
 
-            // Comprobación segura de sensores
+            // 2. Función para arrancar el juego después de 3 segundos (3000 milisegundos)
+            const arrancarConRetraso = () => {
+                setTimeout(() => {
+                    startGame();
+                }, 3000); // <- Aquí le damos 3 segundos de tiempo para que termine la frase
+            };
+
+            // 3. Comprobación de los sensores
             try {
                 if (window.DeviceOrientationEvent && typeof window.DeviceOrientationEvent.requestPermission === 'function') {
                     window.DeviceOrientationEvent.requestPermission()
@@ -96,18 +106,17 @@
                             if (permissionState === 'granted') {
                                 window.addEventListener('deviceorientation', handleOrientation);
                             }
-                            startGame(); // Inicia el juego
+                            arrancarConRetraso();
                         })
                         .catch(e => {
-                            startGame(); // Inicia aunque falle el permiso
+                            arrancarConRetraso();
                         });
                 } else {
                     window.addEventListener('deviceorientation', handleOrientation);
-                    startGame(); // Inicia el juego
+                    arrancarConRetraso();
                 }
             } catch (error) {
-                // Si todo falla, fuerza el inicio para que no se quede bloqueado
-                startGame();
+                arrancarConRetraso();
             }
         });
 
